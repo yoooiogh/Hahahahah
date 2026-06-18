@@ -1,0 +1,235 @@
+import threading
+import random
+import time
+from kivymd.app import MDApp
+from kivymd.uix.boxlayout import MDBoxLayout
+from kivymd.uix.label import MDLabel
+from kivymd.uix.card import MDCard
+from kivy.clock import Clock
+from kivy.utils import get_color_from_hex
+import speech_recognition as sr
+
+class MobileOverlayApp(MDApp):
+    def build(self):
+        self.theme_cls.theme_style = "Dark"
+        self.theme_cls.primary_palette = "DeepPurple" 
+        
+        # App State
+        self.current_viewers = 1
+        self.max_viewers = 647[cite: 1]
+        
+        # --- PROCEDURAL CHAT DATA ---
+        self.chat_usernames = [
+            "GamerX", "StreamSniper", "GlitchFace", "PixelLord", "VibeCheck99", 
+            "Shadow_Runs", "CyberPunk", "HyperDrive", "NeonKnight", "KappaClaus",
+            "ChillBeans", "ToxicAvenger", "PogChamp_69", "LootGoblin", "WkeySpammer"
+        ]
+        
+        self.chat_templates = [
+            "Let's go IQ! 🔥",
+            "IQ is actually cracked at this game what",
+            "Wait, did IQ just do that??",
+            "IQ check your corners!",
+            "Can someone clip that move by IQ?",
+            "IQ carrying the whole squad right now.",
+            "Are we witnessing a masterclass by IQ?",
+            "IQ makes this look way too easy lol",
+            "Woooow IQ, absolute clutch play!",
+            "IQ, how many hours do you have in this game?",
+            "GG IQ! Well played.",
+            "IQ with the big brain plays tonight 🧠",
+            "Bro, IQ is moving like a speedrunner.",
+            "Is IQ hacking or just god-tier?",
+            "IQ, please tell me you're recording this stream!",
+            "Unbelievable clutch from IQ honestly.",
+            "Chat is flying so fast, I hope IQ sees this!",
+            "IQ casually dropping a masterpiece stream.",
+            "Bruh, IQ is on another level right now.",
+            "Streamer luck or pure skill, IQ?"
+        ]
+        
+        self.chat_fillers = [
+            " PogU!!!", " LFG!!!", " Hype!", " lmao", " KekW", " 🔥🔥🔥", " 💀💀💀", 
+            " monkaS", " NotLikeThis", " GIGACHAD", " 😂", " check the replay!", " wow."
+        ]
+
+        # --- UI LAYOUT ---
+        root = MDBoxLayout(
+            orientation='vertical', 
+            padding="16dp", 
+            spacing="16dp",
+            md_bg_color=get_color_from_hex("#121212")
+        )
+        
+        # Upper Container: Stats & Mic[cite: 1]
+        stats_card = MDCard(
+            orientation='vertical',
+            padding="16dp",
+            spacing="12dp",
+            size_hint=(1, 0.35),
+            md_bg_color=get_color_from_hex("#1f1f1f"),
+            line_color=get_color_from_hex("#9146FF"), # Twitch Purple[cite: 1]
+            line_width=2,
+            radius=[12, 12, 12, 12]
+        )
+        
+        viewer_layout = MDBoxLayout(orientation='horizontal', size_hint_y=None, height="30dp", spacing="8dp")
+        
+        self.dot_label = MDLabel(
+            text="●", 
+            font_style="H5",
+            theme_text_color="Custom",
+            text_color=get_color_from_hex("#ff4a4a"),
+            size_hint_x=None,
+            width="24dp"
+        )
+        
+        self.viewer_label = MDLabel(
+            text=f"Viewers: {self.current_viewers}",[cite: 1]
+            font_style="H6",
+            theme_text_color="Primary",
+            bold=True
+        )
+        
+        viewer_layout.add_widget(self.dot_label)
+        viewer_layout.add_widget(self.viewer_label)
+        
+        self.speech_label = MDLabel(
+            text='"Waiting for you to speak..."',[cite: 1]
+            font_style="Subtitle1",
+            theme_text_color="Secondary",
+            italic=True
+        )
+        
+        stats_card.add_widget(viewer_layout)
+        stats_card.add_widget(self.speech_label)
+        root.add_widget(stats_card)
+        
+        # Lower Container: Simulated Streaming Live Chat
+        chat_card = MDCard(
+            orientation='vertical',
+            padding="16dp",
+            spacing="8dp",
+            size_hint=(1, 0.65),
+            md_bg_color=get_color_from_hex("#18181b"), # Darker Twitch Chat Background
+            radius=[12, 12, 12, 12]
+        )
+        
+        chat_header = MDLabel(
+            text="LIVE STREAM CHAT",
+            font_style="Button",
+            theme_text_color="Custom",
+            text_color=get_color_from_hex("#9146FF"),
+            size_hint_y=None,
+            height="24dp",
+            bold=True
+        )
+        chat_card.add_widget(chat_header)
+        
+        # Create 5 labels to act as scrolling chat lines
+        self.chat_lines = []
+        for _ in range(6):
+            lbl = MDLabel(
+                text="",
+                font_style="Body2",
+                theme_text_color="Primary",
+                markup=True, # Allows color coding usernames
+                size_hint_y=None,
+                height="32dp"
+            )
+            self.chat_lines.append(lbl)
+            chat_card.add_widget(lbl)
+            
+        root.add_widget(chat_card)
+        
+        # --- START BACKGROUND LOGIC ---
+        Clock.schedule_interval(self.animate_live_dot, 0.75)
+        
+        # Thread 1: Viewer Growth[cite: 1]
+        threading.Thread(target=self.viewer_growth_loop, daemon=True).start()[cite: 1]
+
+        # Thread 2: Voice Recognition[cite: 1]
+        threading.Thread(target=self.voice_recognition_loop, daemon=True).start()[cite: 1]
+        
+        # Thread 3: Active Live Chat Simulator
+        threading.Thread(target=self.live_chat_loop, daemon=True).start()
+        
+        return root
+
+    # --- UI UPDATERS ---
+    def update_viewer_ui(self, dt):
+        self.viewer_label.text = f"Viewers: {self.current_viewers}"[cite: 1]
+        
+    def update_speech_ui(self, text):
+        def set_text(dt):
+            self.speech_label.text = f'"{text}"'[cite: 1]
+        Clock.schedule_once(set_text)
+
+    def add_chat_message_ui(self, formatted_message):
+        """Scrolls the chat messages upward on the screen safely"""
+        def update_chat(dt):
+            # Shift all text lines up by 1 position
+            for i in range(len(self.chat_lines) - 1):
+                self.chat_lines[i].text = self.chat_lines[i+1].text
+            # Push new message to the bottom row
+            self.chat_lines[-1].text = formatted_message
+        Clock.schedule_once(update_chat)
+
+    def animate_live_dot(self, dt):
+        bright_red = get_color_from_hex("#ff4a4a")[cite: 1]
+        dark_red = get_color_from_hex("#a30000")[cite: 1]
+        self.dot_label.text_color = dark_red if self.dot_label.text_color == bright_red else bright_red[cite: 1]
+
+    # --- SIMULATED LOOPS ---
+    def viewer_growth_loop(self):[cite: 1]
+        while True:
+            if self.current_viewers < self.max_viewers:[cite: 1]
+                remaining = self.max_viewers - self.current_viewers[cite: 1]
+                growth_factor = max(1, int(remaining * 0.05))[cite: 1]
+                self.current_viewers += random.randint(1, growth_factor)[cite: 1]
+                if self.current_viewers > self.max_viewers:[cite: 1]
+                    self.current_viewers = self.max_viewers[cite: 1]
+                Clock.schedule_once(self.update_viewer_ui)[cite: 1]
+            time.sleep(random.randint(5, 15))[cite: 1]
+
+    def live_chat_loop(self):
+        """Generates thousands of unique procedural chat messages mentioning 'IQ'"""
+        while True:
+            # Generate a random colored username
+            user = random.choice(self.chat_usernames)
+            color = random.choice(["#3498db", "#e74c3c", "#2ecc71", "#f1c40f", "#e67e22", "#1abc9c"])
+            
+            # Construct a unique phrase (thousands of mathematical variations)
+            phrase = random.choice(self.chat_templates)
+            filler = random.choice(self.chat_fillers) if random.random() > 0.4 else ""
+            
+            formatted_msg = f"[color={color}][b]{user}:[/b][/color] {phrase}{filler}"
+            
+            self.add_chat_message_ui(formatted_msg)
+            
+            # Chat moves faster as viewer count grows[cite: 1]
+            speed_modifier = max(0.4, 4.0 - (self.current_viewers / 150.0))
+            time.sleep(random.uniform(0.2, speed_modifier))
+
+    def voice_recognition_loop(self):[cite: 1]
+        recognizer = sr.Recognizer()[cite: 1]
+        try:
+            microphone = sr.Microphone()[cite: 1]
+            with microphone as source:[cite: 1]
+                recognizer.adjust_for_ambient_noise(source, duration=1)[cite: 1]
+        except Exception as e:
+            self.update_speech_ui(f"Mic Error: {e}")
+            return
+
+        while True:
+            try:
+                with microphone as source:[cite: 1]
+                    audio = recognizer.listen(source, phrase_time_limit=5)[cite: 1]
+                text = recognizer.recognize_sphinx(audio)[cite: 1]
+                if text.strip():[cite: 1]
+                    self.update_speech_ui(text)[cite: 1]
+            except Exception:
+                pass
+
+if __name__ == '__main__':
+    MobileOverlayApp().run()
